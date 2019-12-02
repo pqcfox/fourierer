@@ -6,16 +6,20 @@ import cmath
 """
 Slow O(M^2N^2) implementation of the discrete Fourier transform.
 Input:
-    image = PIL Image object
+    imarray = array representing the pixel intensities of 2D image
     inverse = boolean representing whether to take the inverse DFT
 Output:
     dft_r, dft_g, dft_b = matrices representing pixel intensities at each red, green, and blue channel
 """
-def dft(image, inverse=False):
+def dft(imarray, inverse=False):
     const = 1
     if inverse == True:
         const = 1 / (2 * pi)
-    M, N = image.size
+    m, n = imarray.shape
+    return np.array([[sum([sum([imarray[i,j] * np.exp(-1j*2*np.pi*(k_m*i/m + k_n*j/n)) * const for i in range(m)]) for j in range(n)]) for k_n in range(n)] for k_m in range(m)])
+
+    """
+    # for RGB images, which we don't have apparently
     dft_r = np.zeros((M, N))
     dft_g = np.zeros((M, N))
     dft_b = np.zeros((M, N))
@@ -37,29 +41,58 @@ def dft(image, inverse=False):
             dft_b[l][k] = sum_b / M / N
     result = np.array([dft_r, dft_g, dft_b])
     print(result.shape)
-    result = Image.fromarray(numpy.T, 'RGB')
+    result = Image.fromarray(np.T, 'RGB')
     return result
+    """
 
 
 """
 Popular divide-and-conquer approach to DFT proposed by Cooley and Tukey.
 Input:
-    image = PIL Image object
+    imarray = array representing the pixel intensities of 2D image
+    inverse = boolean representing whether to take the inverse DFT
 Output:
-    dft_r, dft_g, dft_b = matrices representing pixel intensities at each red, green, and blue channel
+    
 """
-def ct(image):
-     M, N = image.size
+def ct(imarray, inverse=False):
+    const = 1
+    if inverse == True:
+        const = 1 / (2 * pi)
+    m, n = imarray.shape
+    result = np.zeros((m, n))
+    
+    if m % 2 != 0 or n % 2 != 0:
+        raise ValueError('dimensions need to be a multiple of 2')
+    elif m != n:
+        raise ValueError('dimensions in this implementation need to be equivalent')
+    elif m <= 32:
+        return dft(imarray, inverse)
+    else:
+        # note that b/c of symmetry, the 2D DFT can be thought of as a 1D DFT horizontally, then a 1D DFT vertically
+        for i in range(m):
+            even = imarray[i][::2]
+            odd = imarray[i][1::2]
+            exponential = np.exp(-1j * 2 * np.pi * np.arange(n) / n)
+            result[i] = np.concatenate([even + exponential[:n / 2] * odd, even + exponential[n / 2:] * odd])
+        for j in range(n):
+            even = result[:,j][::2]
+            odd = imarray[:,j][1::2]
+            exponential = np.exp(-1j * 2 * np.pi * np.arange(m) / m)
+            result[:,j] = np.concatenate([even + exponential[:n / 2] * odd, even + exponential[n / 2:] * odd])
+        return result
+
 
 
 """
 Bruun's FFT using a recursive polynomial-factorization approach. Must be used on factors of 2.
 Input:
-    image = PIL Image object
+    imarray = array representing the pixel intensities of 2D image
+    inverse = boolean representing whether to take the inverse DFT
 Output:
     dft_r, dft_g, dft_b = matrices representing pixel intensities at each red, green, and blue channel
 """
-def bruun(image):
+def bruun(imarray, inverse=False):
+    m, n = image.size
     
 def main():
     # load the data as a numpy array
@@ -70,19 +103,21 @@ def main():
 
     args = parser.parse_args()
     image = Image.open(args.image_file)
+    imarray = np.array(image)
 
     if args.implementation == 'dft':
         # do a O(N^2) DFT on the image data
-        convolved = dft(image)
+        convolved = dft(imarray)
     elif args.implementation == 'c-t':
         # use Cooley-Tukey divide-and-conquer approach
-        convolved = ct(image)
+        convolved = ct(imarray)
     else:
         # use Bruun's implementation
-        convolved = bruun(image)
+        convolved = bruun(imarray)
 
     # save convolved image
-    convolved.save('{}/output.png'.format(args.output_path), 'PNG')
+    result = Image.fromarray(convolved)
+    result.save('{}/output.png'.format(args.output_path), 'PNG')
 
 if __name__ == '__main__':
     main()
