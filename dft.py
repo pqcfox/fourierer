@@ -66,7 +66,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('image_file', type=str, help='path to the image file')
     parser.add_argument('implementation', type=str, help='which implementation of DFT to use, can be dft, c-t, or bruun')
-    
+    parser.add_argument('output_path', type=str, help='path to where the image should be saved')
+
     args = parser.parse_args()
     image = Image.open(args.image_file)
 
@@ -81,6 +82,7 @@ def main():
         convolved = bruun(image)
 
     # save convolved image
+    convolved.save('{}/output.png'.format(args.output_path), 'PNG')
 
 if __name__ == '__main__':
     main()
