@@ -52,7 +52,7 @@ Input:
     imarray = array representing the pixel intensities of 2D image
     inverse = boolean representing whether to take the inverse DFT
 Output:
-    
+    result = array representing the convolved image
 """
 def ct(imarray, inverse=False):
     const = 1
@@ -89,10 +89,11 @@ Input:
     imarray = array representing the pixel intensities of 2D image
     inverse = boolean representing whether to take the inverse DFT
 Output:
-    dft_r, dft_g, dft_b = matrices representing pixel intensities at each red, green, and blue channel
+    result = array representing the convolved image
 """
 def bruun(imarray, inverse=False):
     m, n = image.size
+    
     
 def main():
     # load the data as a numpy array
