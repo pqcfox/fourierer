@@ -4,7 +4,7 @@ import argparse
 import cmath
 
 """
-Slow O(M^2N^2) implementation of the discrete Fourier transform.
+Slow O(MN) implementation of the discrete Fourier transform.
 Input:
     imarray = array representing the pixel intensities of 2D image
     inverse = boolean representing whether to take the inverse DFT
@@ -16,6 +16,7 @@ def dft(imarray, inverse=False):
     if inverse == True:
         const = 1 / (2 * pi)
     m, n = imarray.shape
+    print(m, n)
     return np.array([[sum([sum([imarray[i,j] * np.exp(-1j*2*np.pi*(k_m*i/m + k_n*j/n)) * const for i in range(m)]) for j in range(n)]) for k_n in range(n)] for k_m in range(m)])
 
     """
@@ -58,29 +59,44 @@ def ct(imarray, inverse=False):
     const = 1
     if inverse == True:
         const = 1 / (2 * pi)
-    m, n = imarray.shape
-    result = np.zeros((m, n))
+    N = imarray.shape[0]
     
-    if m % 2 != 0 or n % 2 != 0:
-        raise ValueError('dimensions need to be a multiple of 2')
-    elif m != n:
-        raise ValueError('dimensions in this implementation need to be equivalent')
-    elif m <= 32:
-        return dft(imarray, inverse)
-    else:
-        # note that b/c of symmetry, the 2D DFT can be thought of as a 1D DFT horizontally, then a 1D DFT vertically
-        for i in range(m):
-            even = imarray[i][::2]
-            odd = imarray[i][1::2]
-            exponential = np.exp(-1j * 2 * np.pi * np.arange(n) / n)
-            result[i] = np.concatenate([even + exponential[:n / 2] * odd, even + exponential[n / 2:] * odd])
-        for j in range(n):
-            even = result[:,j][::2]
-            odd = imarray[:,j][1::2]
-            exponential = np.exp(-1j * 2 * np.pi * np.arange(m) / m)
-            result[:,j] = np.concatenate([even + exponential[:n / 2] * odd, even + exponential[n / 2:] * odd])
-        return result
+    if np.log2(N) % 1 > 0:
+        raise ValueError("size of image must be a power of 2")
 
+    # N_min here is equivalent to the stopping condition above,
+    # and should be a power of 2
+    N_min = min(N, 32)
+
+    def ct_1d(x):
+        # Perform an O[N^2] DFT on all length-N_min sub-problems at once
+        n = np.arange(N_min)
+        k = n[:, None]
+        M = np.exp(-2j * np.pi * n * k / N_min)
+        X = np.dot(M, x.reshape((N_min, -1)))
+
+        # build-up each level of the recursive calculation all at once
+        while X.shape[0] < N:
+            X_even = X[:, :(int(X.shape[1] / 2))]
+            X_odd = X[:, (int(X.shape[1] / 2)):]
+            factor = np.exp(-1j * np.pi * np.arange(X.shape[0])
+                            / X.shape[0])[:, None]
+            X = np.vstack([X_even + factor * X_odd,
+                        X_even - factor * X_odd])
+
+        return X.ravel()
+
+    inter = np.zeros((N, N))
+    for n in range(N):
+        x = imarray[n] 
+        inter[n] = ct_1d(x) 
+    print(inter.shape)
+    result = np.zeros((N, N))   
+    for n in range(N):
+        x = inter[:n]
+        result[:,n] = ct_1d(x)        
+    
+    return result
 
 
 """
@@ -92,7 +108,8 @@ Output:
     result = array representing the convolved image
 """
 def bruun(imarray, inverse=False):
-    m, n = image.size
+    m, n = imarray.size
+    return None
     
     
 def main():
@@ -106,19 +123,20 @@ def main():
     image = Image.open(args.image_file)
     imarray = np.array(image)
 
+    result = None
     if args.implementation == 'dft':
         # do a O(N^2) DFT on the image data
-        convolved = dft(imarray)
+        result = dft(imarray)
     elif args.implementation == 'c-t':
         # use Cooley-Tukey divide-and-conquer approach
-        convolved = ct(imarray)
+        result = ct(imarray)
     else:
         # use Bruun's implementation
-        convolved = bruun(imarray)
+        result = bruun(imarray)
 
     # save convolved image
     result = Image.fromarray(convolved)
-    result.save('{}/output.png'.format(args.output_path), 'PNG')
+    result.save(args.output_path, 'PNG')
 
 if __name__ == '__main__':
     main()
