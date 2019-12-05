@@ -16,11 +16,10 @@ def dft(imarray, inverse=False):
     if inverse == True:
         const = 1 / (2 * pi)
     m, n = imarray.shape
-    print(m, n)
     return np.array([[sum([sum([imarray[i,j] * np.exp(-1j*2*np.pi*(k_m*i/m + k_n*j/n)) * const for i in range(m)]) for j in range(n)]) for k_n in range(n)] for k_m in range(m)])
 
     """
-    # for RGB images, which we don't have apparently
+    # for RGB images
     dft_r = np.zeros((M, N))
     dft_g = np.zeros((M, N))
     dft_b = np.zeros((M, N))
@@ -86,14 +85,13 @@ def ct(imarray, inverse=False):
 
         return X.ravel()
 
-    inter = np.zeros((N, N))
+    inter = np.zeros((N, N), dtype=complex)
     for n in range(N):
         x = imarray[n] 
         inter[n] = ct_1d(x) 
-    print(inter.shape)
-    result = np.zeros((N, N))   
+    result = np.zeros((N, N), dtype=complex)   
     for n in range(N):
-        x = inter[:n]
+        x = inter[:,n]
         result[:,n] = ct_1d(x)        
     
     return result
@@ -125,18 +123,31 @@ def main():
 
     result = None
     if args.implementation == 'dft':
-        # do a O(N^2) DFT on the image data
+        # do a O(N^4) DFT on the image data
         result = dft(imarray)
     elif args.implementation == 'c-t':
         # use Cooley-Tukey divide-and-conquer approach
         result = ct(imarray)
-    else:
+    elif args.implementation == 'bruun':
         # use Bruun's implementation
         result = bruun(imarray)
+    else:
+        raise ValueError('not a valid implementation')
+
+    # to display the image, we only take the magnitude of the resultant array, as it contains most of the geometric structure info
+    magnitude = np.real(result)
 
     # save convolved image
-    result = Image.fromarray(convolved)
-    result.save(args.output_path, 'PNG')
+    im_result = Image.fromarray(magnitude).convert('L')
+    im_result.save(args.output_path, 'PNG')
+
+    # get numpy fft result
+    result = np.fft.fft2(imarray)
+    magnitude = np.real(result)
+    im_result = Image.fromarray(magnitude).convert('L')
+    im_result.save('true.png', 'PNG') 
+
+
 
 if __name__ == '__main__':
     main()
