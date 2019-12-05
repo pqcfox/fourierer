@@ -2,6 +2,7 @@ from PIL import Image
 import numpy as np
 import argparse
 import cmath
+import time
 
 """
 Slow O(MN) implementation of the discrete Fourier transform.
@@ -9,14 +10,25 @@ Input:
     imarray = array representing the pixel intensities of 2D image
     inverse = boolean representing whether to take the inverse DFT
 Output:
-    dft_r, dft_g, dft_b = matrices representing pixel intensities at each red, green, and blue channel
+    result = array representing the resultant transformed image
 """
 def dft(imarray, inverse=False):
     const = 1
     if inverse == True:
         const = 1 / (2 * pi)
-    m, n = imarray.shape
-    return np.array([[sum([sum([imarray[i,j] * np.exp(-1j*2*np.pi*(k_m*i/m + k_n*j/n)) * const for i in range(m)]) for j in range(n)]) for k_n in range(n)] for k_m in range(m)])
+    M, N = imarray.shape
+
+    result = np.zeros((M,N), dtype=complex)
+    for k in range(M):
+        for l in range(N):
+            sum = 0
+            for a in range(M):
+                for b in range(N):
+                    factor = cmath.exp(-2 * cmath.pi * 1j * (float(k * a) / M + float(l * b) / N))
+                    sum += imarray[a][b] * factor * const
+            result[k][l] = sum
+            print(sum)
+    return result
 
     """
     # for RGB images
@@ -122,6 +134,7 @@ def main():
     imarray = np.array(image)
 
     result = None
+    start_time = time.time()
     if args.implementation == 'dft':
         # do a O(N^4) DFT on the image data
         result = dft(imarray)
@@ -133,6 +146,7 @@ def main():
         result = bruun(imarray)
     else:
         raise ValueError('not a valid implementation')
+    print("--- %s seconds ---" % (time.time() - start_time))
 
     # to display the image, we only take the magnitude of the resultant array, as it contains most of the geometric structure info
     magnitude = np.real(result)
@@ -142,7 +156,10 @@ def main():
     im_result.save(args.output_path, 'PNG')
 
     # get numpy fft result
+    start_time = time.time()
     result = np.fft.fft2(imarray)
+    print("--- %s seconds ---" % (time.time() - start_time))
+    
     magnitude = np.real(result)
     im_result = Image.fromarray(magnitude).convert('L')
     im_result.save('true.png', 'PNG') 
