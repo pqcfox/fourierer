@@ -13,21 +13,20 @@ Output:
     result = array representing the resultant transformed image
 """
 def dft(imarray, inverse=False):
-    const = 1
-    if inverse == True:
-        const = 1 / (2 * pi)
     M, N = imarray.shape
+    const = 1.0 / (M * N) if inverse else 1.0
 
-    result = np.zeros((M,N), dtype=complex)
+    result = np.zeros((M, N), dtype=complex)
     for k in range(M):
         for l in range(N):
-            sum = 0
+            total = 0
             for a in range(M):
                 for b in range(N):
-                    factor = cmath.exp(-2 * cmath.pi * 1j * (float(k * a) / M + float(l * b) / N))
-                    sum += imarray[a][b] * factor * const
-            result[k][l] = sum
-            print(sum)
+                    sign = 1.0 if inverse else -1.0
+                    factor = cmath.exp(sign * 2.0 * cmath.pi * 1j *
+                                       (float(k * a) / M + float(l * b) / N))
+                    total += imarray[a][b] * factor * const
+            result[k][l] = total
     return result
 
     """
