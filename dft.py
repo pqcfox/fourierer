@@ -57,21 +57,21 @@ def dft(imarray, inverse=False):
     return result
     """
 
-
 """
 Popular divide-and-conquer approach to DFT proposed by Cooley and Tukey.
+Implements a radix-2 decimation-in-time row-column Cooley-Tukey FFT.
 Input:
     imarray = array representing the pixel intensities of 2D image
     inverse = boolean representing whether to take the inverse DFT
 Output:
-    result = array representing the convolved image
+    result = array representing the DFT of the image
 """
 def ct(imarray, inverse=False):
     const = 1
     if inverse == True:
         const = 1 / (2 * pi)
     N = imarray.shape[0]
-    
+
     if np.log2(N) % 1 > 0:
         raise ValueError("size of image must be a power of 2")
 
@@ -99,29 +99,56 @@ def ct(imarray, inverse=False):
 
     inter = np.zeros((N, N), dtype=complex)
     for n in range(N):
-        x = imarray[n] 
-        inter[n] = ct_1d(x) 
-    result = np.zeros((N, N), dtype=complex)   
+        x = imarray[n]
+        inter[n] = ct_1d(x)
+    result = np.zeros((N, N), dtype=complex)
     for n in range(N):
         x = inter[:,n]
-        result[:,n] = ct_1d(x)        
-    
+        result[:,n] = ct_1d(x)
+
     return result
 
-
 """
-Bruun's FFT using a recursive polynomial-factorization approach. Must be used on factors of 2.
+Explicitly 2D DFT implementation which decimates along both dimensions at once.
+Implements a radix-2 decimation-in-time vector-radix FFT.
 Input:
     imarray = array representing the pixel intensities of 2D image
     inverse = boolean representing whether to take the inverse DFT
 Output:
-    result = array representing the convolved image
+    result = array representing the DFT of the image
 """
-def bruun(imarray, inverse=False):
-    m, n = imarray.size
-    return None
-    
-    
+def vr(imarray, inverse=False):
+    pass
+
+
+"""
+Computes a DFT by using different radixes in order to avoid needless
+multiplications between recursive DFTs ("twiddle factors").
+Implements a radix-2/4 decimation-in-frequency split-radix FFT.
+Input:
+    imarray = array representing the pixel intensities of 2D image
+    inverse = boolean representing whether to take the inverse DFT
+Output:
+    result = array representing the DFT of the image
+"""
+def sr(imarray, inverse=False):
+    pass
+
+
+"""
+Computes a 1D DFT by rearranging coefficients to avoid any multiplications
+between DFT calculations (i.e. no "twiddle factors").
+Implements a 1D prime factor algorithm FFT (uses Good's mapping).
+Input:
+    imarray = array representing the pixel intensities of 2D image
+    inverse = boolean representing whether to take the inverse DFT
+Output:
+    result = array representing the DFT of the image
+"""
+def pfa_1d(x):
+    pass
+
+
 def main():
     # load the data as a numpy array
     parser = argparse.ArgumentParser()
@@ -159,10 +186,10 @@ def main():
     start_time = time.time()
     result = np.fft.fft2(imarray)
     print("--- %s seconds ---" % (time.time() - start_time))
-    
+
     magnitude = np.real(result)
     im_result = Image.fromarray(magnitude).convert('L')
-    im_result.save('true.png', 'PNG') 
+    im_result.save('true.png', 'PNG')
 
 
 
