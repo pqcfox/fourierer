@@ -23,8 +23,8 @@ def dft(imarray, inverse=False):
             total = 0
             for a in range(M):
                 for b in range(N):
-                    factor = cmath.exp(sign * 2.0 * cmath.pi * 1j *
-                                       (float(k * a) / M + float(l * b) / N))
+                    multiplier = float(k * a) / M + float(l * b) / N
+                    factor = cmath.exp(sign * 2.0j * cmath.pi * multiplier)
                     total += imarray[a][b] * factor * const
             result[k][l] = total
     return result
@@ -78,8 +78,8 @@ def ct(imarray, inverse=False):
 
     def ct_1d(x):
         # Perform an O[N^2] DFT on all length-N_min sub-problems at once
-        n = np.arange(N_min)
-        k = n[:, None]
+        k = np.arange(N_min)[None, :]
+        n = np.arange(N_min)[:, None]
         M = np.exp(sign * 2.0j * np.pi * n * k / N_min)
         X = np.dot(M, x.reshape((N_min, -1)))
 
@@ -115,7 +115,25 @@ Output:
     result = array representing the DFT of the image
 """
 def vr(imarray, inverse=False):
-    pass
+    M, N = imarray.shape
+    const = 1.0 / (M * N) if inverse else 1.0
+    sign = 1.0 if inverse else -1.0
+
+    if not np.log2(N).is_integer():
+        raise ValueError("size of image must be a power of 2")
+
+    # N_min here is equivalent to the stopping condition above,
+    # and should be a power of 2
+    N_min = min(N, 32)
+
+    # Perform slow DFT on all length-N_min sub-problems as in Cooley-Tukey
+    n = np.arange(N_min)[:, None, None]
+    k = np.arange(N_min)[None, :, None]
+    l = np.arange(N_min)[None, None, :]
+    M = np.exp(sign * 2.0j * np.pi * n * k / N_min) # 
+    X = np.dot(M, x.reshape((N_min, -1)))
+
+    factor = cmath.exp(sign * 2.0j * cmath.pi * multiplier)
 
 
 """
