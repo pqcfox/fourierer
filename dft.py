@@ -84,7 +84,7 @@ def split_radix_1d(X, inverse=False):
     X_three = split_radix_1d(X[3::4], inverse=inverse)
 
     X_even_front, X_even_back = X_even[:N//4], X_even[N//4:]
-    twiddle_one = np.exp(2.0j * np.pi * np.arange(N//4) / N)
+    twiddle_one = np.exp(-2.0j * np.pi * np.arange(N//4) / N)
     twiddle_three = np.exp(-2.0j * np.pi * 3 * np.arange(N//4) / N)
     X_one_t = twiddle_one * X_one
     X_three_t = twiddle_three * X_three
