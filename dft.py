@@ -37,7 +37,7 @@ def row_column(image, fft_1d, inverse=False):
         output[i, :] = fft_1d(image[i, :], inverse=inverse)
     for j in range(N):
         output[:, j] = fft_1d(output[:, j], inverse=inverse)
-    return image
+    return output
 
 
 def cooley_tukey_1d(X, inverse=False):
