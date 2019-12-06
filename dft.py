@@ -115,20 +115,20 @@ def vector_radix(X, inverse=False):
 
     if N == 1:
         return X
-    else:
-        X_even_even = vr(X[::2, ::2], inverse=inverse)
-        X_even_odd = vr(X[::2, 1::2], inverse=inverse)
-        X_odd_even = vr(X[1::2, ::2], inverse=inverse)
-        X_odd_odd = vr(X[1::2, 1::2], inverse=inverse)
-        f_even_odd = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[None, :]
-        f_odd_even = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[:, None]
-        f_odd_odd = f_even_odd * f_odd_even
 
-        X = np.tile(X_even_even, (2, 2))
-        X += f_even_odd * np.tile(X_even_odd, (2, 2))
-        X += f_odd_even * np.tile(X_odd_even, (2, 2))
-        X += f_odd_odd * np.tile(X_odd_odd, (2, 2))
-    return X
+    X_even_even = vector_radix(X[::2, ::2], inverse=inverse)
+    X_even_odd = vector_radix(X[::2, 1::2], inverse=inverse)
+    X_odd_even = vector_radix(X[1::2, ::2], inverse=inverse)
+    X_odd_odd = vector_radix(X[1::2, 1::2], inverse=inverse)
+    f_even_odd = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[None, :]
+    f_odd_even = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[:, None]
+    f_odd_odd = f_even_odd * f_odd_even
+
+    result = np.tile(X_even_even, (2, 2)).astype(complex)
+    result += f_even_odd * np.tile(X_even_odd, (2, 2))
+    result += f_odd_even * np.tile(X_odd_even, (2, 2))
+    result += f_odd_odd * np.tile(X_odd_odd, (2, 2))
+    return result
 
 
 def pfa_1d(x):
