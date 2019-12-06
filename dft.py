@@ -15,6 +15,7 @@ Output:
 def dft(imarray, inverse=False):
     M, N = imarray.shape
     const = 1.0 / (M * N) if inverse else 1.0
+    sign = 1.0 if inverse else -1.0
 
     result = np.zeros((M, N), dtype=complex)
     for k in range(M):
@@ -22,7 +23,6 @@ def dft(imarray, inverse=False):
             total = 0
             for a in range(M):
                 for b in range(N):
-                    sign = 1.0 if inverse else -1.0
                     factor = cmath.exp(sign * 2.0 * cmath.pi * 1j *
                                        (float(k * a) / M + float(l * b) / N))
                     total += imarray[a][b] * factor * const
@@ -61,17 +61,15 @@ Popular divide-and-conquer approach to DFT proposed by Cooley and Tukey.
 Implements a radix-2 decimation-in-time row-column Cooley-Tukey FFT.
 Input:
     imarray = array representing the pixel intensities of 2D image
-    inverse = boolean representing whether to take the inverse DFT
 Output:
     result = array representing the DFT of the image
 """
 def ct(imarray, inverse=False):
-    const = 1
-    if inverse == True:
-        const = 1 / (2 * pi)
     N = imarray.shape[0]
+    const = 1.0 / (M * N) if inverse else 1.0
+    sign = 1.0 if inverse else -1.0
 
-    if np.log2(N) % 1 > 0:
+    if not np.log2(N).is_integer():
         raise ValueError("size of image must be a power of 2")
 
     # N_min here is equivalent to the stopping condition above,
@@ -82,14 +80,14 @@ def ct(imarray, inverse=False):
         # Perform an O[N^2] DFT on all length-N_min sub-problems at once
         n = np.arange(N_min)
         k = n[:, None]
-        M = np.exp(-2j * np.pi * n * k / N_min)
+        M = np.exp(sign * 2.0j * np.pi * n * k / N_min)
         X = np.dot(M, x.reshape((N_min, -1)))
 
         # build-up each level of the recursive calculation all at once
         while X.shape[0] < N:
             X_even = X[:, :(int(X.shape[1] / 2))]
             X_odd = X[:, (int(X.shape[1] / 2)):]
-            factor = np.exp(-1j * np.pi * np.arange(X.shape[0])
+            factor = np.exp(sign * 1.0j * np.pi * np.arange(X.shape[0])
                             / X.shape[0])[:, None]
             X = np.vstack([X_even + factor * X_odd,
                         X_even - factor * X_odd])
