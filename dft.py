@@ -29,32 +29,111 @@ def dft(imarray, inverse=False):
             result[k][l] = total
     return result
 
-    """
-    # for RGB images
-    dft_r = np.zeros((M, N))
-    dft_g = np.zeros((M, N))
-    dft_b = np.zeros((M, N))
-    pixels = image.load()
-    for i in range(M):
-        for j in range(N):
-            sum_r = 0
-            sum_g = 0
-            sum_b = 0
-            for m in range(M):
-                for n in range(N):
-                    (r, g, b, alpha) = pixels[m,n]
-                    exponential = cmath.exp(-2 * cmath.pi * 1j * (float(k * m) / M + float(l * n) / N))
-                    sum_r += r * exponential * const
-                    sum_g += g * exponential * const
-                    sum_b += b * exponential * const
-            dft_r[l][k] = sum_r / M / N
-            dft_g[l][k] = sum_g / M / N
-            dft_b[l][k] = sum_b / M / N
-    result = np.array([dft_r, dft_g, dft_b])
-    print(result.shape)
-    result = Image.fromarray(np.T, 'RGB')
+
+def row_column(image, fft_1d, inverse=False):
+    M, N = image.shape
+    output = np.zeros_like(image, dtype=complex)
+    for i in range(N):
+        output[i, :] = fft_1d(image[i, :], inverse=inverse)
+    for j in range(N):
+        output[:, j] = fft_1d(output[:, j], inverse=inverse)
+    return image
+
+
+def cooley_tukey_1d(X, inverse=False):
+    N, = X.shape
+    const = 1.0 / (M * N) if inverse else 1.0
+    sign = 1.0 if inverse else -1.0
+
+    if not np.log2(N).is_integer():
+        raise ValueError("size of image must be a power of 2")
+
+    if N == 1:
+        return X
+
+    X_even = cooley_tukey_1d(X[::2], inverse=inverse)
+    X_odd = cooley_tukey_1d(X[1::2], inverse=inverse)
+    twiddle = np.exp(-2.0j * np.pi * np.arange(N//2) / (N))
+    X_odd_t = X_odd * twiddle
+    plus = X_even + X_odd_t
+    minus = X_even - X_odd_t
+    result = np.concatenate((plus, minus))
     return result
-    """
+
+
+def cooley_tukey(image, inverse=False):
+    return row_column(image, cooley_tukey_1d, inverse=inverse)
+
+
+def split_radix_1d(X, inverse=False):
+    N, = X.shape
+    const = 1.0 / (M * N) if inverse else 1.0
+    sign = 1.0 if inverse else -1.0
+
+    if not np.log2(N).is_integer():
+        raise ValueError("size of image must be a power of 2")
+
+    if N == 1:
+        return X
+
+    if N % 4 != 0:
+        return cooley_tukey_1d(X, inverse=inverse)
+
+    X_even = split_radix_1d(X[::2], inverse=inverse)
+    X_one = split_radix_1d(X[1::4], inverse=inverse)
+    X_three = split_radix_1d(X[3::4], inverse=inverse)
+
+    X_even_front, X_even_back = X_even[:N//4], X_even[N//4:]
+    twiddle_one = np.exp(2.0j * np.pi * np.arange(N//4) / N)
+    twiddle_three = np.exp(-2.0j * np.pi * 3 * np.arange(N//4) / N)
+    X_one_t = twiddle_one * X_one
+    X_three_t = twiddle_three * X_three
+
+    first = X_even_front + X_one_t + X_three_t
+    second = X_even_back - 1.0j * (X_one_t - X_three_t)
+    third = X_even_front - (X_one_t + X_three_t)
+    fourth = X_even_back + 1.0j * (X_one_t - X_three_t)
+
+    result = np.concatenate((first, second, third, fourth))
+    return result
+
+
+def split_radix(image, inverse=False):
+    return row_column(image, split_radix_1d, inverse=inverse)
+
+
+def vector_radix(X, inverse=False):
+    M, N = X.shape
+    const = 1.0 / (M * N) if inverse else 1.0
+    sign = 1.0 if inverse else -1.0
+
+    if M != N:
+        raise ValueError("image must be square")
+
+    if not np.log2(N).is_integer():
+        raise ValueError("size of image must be a power of 2")
+
+    if N == 1:
+        return X
+    else:
+        X_even_even = vr(X[::2, ::2], inverse=inverse)
+        X_even_odd = vr(X[::2, 1::2], inverse=inverse)
+        X_odd_even = vr(X[1::2, ::2], inverse=inverse)
+        X_odd_odd = vr(X[1::2, 1::2], inverse=inverse)
+        f_even_odd = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[None, :]
+        f_odd_even = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[:, None]
+        f_odd_odd = f_even_odd * f_odd_even
+
+        X = np.tile(X_even_even, (2, 2))
+        X += f_even_odd * np.tile(X_even_odd, (2, 2))
+        X += f_odd_even * np.tile(X_odd_even, (2, 2))
+        X += f_odd_odd * np.tile(X_odd_odd, (2, 2))
+    return X
+
+
+def pfa_1d(x):
+    pass
+
 
 """
 Popular divide-and-conquer approach to DFT proposed by Cooley and Tukey.
@@ -64,7 +143,7 @@ Input:
 Output:
     result = array representing the DFT of the image
 """
-def ct(imarray, inverse=False):
+def ct_fast(imarray, inverse=False):
     N = imarray.shape[0]
     const = 1.0 / (M * N) if inverse else 1.0
     sign = 1.0 if inverse else -1.0
@@ -106,101 +185,6 @@ def ct(imarray, inverse=False):
     return result
 
 
-"""
-Explicitly 2D DFT implementation which decimates along both dimensions at once.
-Implements a radix-2 decimation-in-time vector-radix FFT.
-Input:
-    imarray = array representing the pixel intensities of 2D image
-    inverse = boolean representing whether to take the inverse DFT
-Output:
-    result = array representing the DFT of the image
-"""
-def vr(imarray, inverse=False):
-    M, N = imarray.shape
-    const = 1.0 / (M * N) if inverse else 1.0
-    sign = 1.0 if inverse else -1.0
-
-    if M != N:
-        raise ValueError("image must be square")
-
-    if not np.log2(N).is_integer():
-        raise ValueError("size of image must be a power of 2")
-
-    N_min = min(N, 32)
-
-    if N == N_min:
-        X = dft(imarray, inverse=inverse)
-    else:
-        X_even_even = vr(imarray[::2, ::2], inverse=inverse)
-        X_even_odd = vr(imarray[::2, 1::2], inverse=inverse)
-        X_odd_even = vr(imarray[1::2, ::2], inverse=inverse)
-        X_odd_odd = vr(imarray[1::2, 1::2], inverse=inverse)
-        f_even_odd = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[None, :]
-        f_odd_even = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[:, None]
-        f_odd_odd = f_even_odd * f_odd_even
-
-        X = np.tile(X_even_even, (2, 2))
-        X += f_even_odd * np.tile(X_even_odd, (2, 2))
-        X += f_odd_even * np.tile(X_odd_even, (2, 2))
-        X += f_odd_odd * np.tile(X_odd_odd, (2, 2))
-    return X
-
-
-"""
-Computes a DFT by using different radixes in order to simplify out needless
-multiplications between recursive DFTs ("twiddle factors").
-Implements a decimation-in-frequency split vector-radix FFT.
-Input:
-    imarray = array representing the pixel intensities of 2D image
-    inverse = boolean representing whether to take the inverse DFT
-Output:
-    result = array representing the DFT of the image
-"""
-def srvr(imarray, inverse=False):
-    M, N = imarray.shape
-    const = 1.0 / (M * N) if inverse else 1.0
-    sign = 1.0 if inverse else -1.0
-
-    if M != N:
-        raise ValueError("image must be square")
-
-    if not np.log2(N).is_integer():
-        raise ValueError("size of image must be a power of 2")
-
-    N_min = min(N, 32)
-
-    if N == N_min:
-        X = dft(imarray, inverse=inverse)
-    else:
-        X_even_even = vr(imarray[::2, ::2], inverse=inverse)
-        X_even_odd = vr(imarray[::2, 1::2], inverse=inverse)
-        X_odd_even = vr(imarray[1::2, ::2], inverse=inverse)
-        X_odd_odd = vr(imarray[1::2, 1::2], inverse=inverse)
-        f_even_odd = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[None, :]
-        f_odd_even = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[:, None]
-        f_odd_odd = f_even_odd * f_odd_even
-
-        X = np.tile(X_even_even, (2, 2))
-        X += f_even_odd * np.tile(X_even_odd, (2, 2))
-        X += f_odd_even * np.tile(X_odd_even, (2, 2))
-        X += f_odd_odd * np.tile(X_odd_odd, (2, 2))
-        # TODO: replace odd terms appropriately
-
-    return X
-
-
-"""
-Computes a 1D DFT by rearranging coefficients to avoid any multiplications
-between DFT calculations (i.e. no "twiddle factors").
-Implements a 1D prime factor algorithm FFT (uses Good's mapping).
-Input:
-    imarray = array representing the pixel intensities of 2D image
-    inverse = boolean representing whether to take the inverse DFT
-Output:
-    result = array representing the DFT of the image
-"""
-def pfa_1d(x):
-    pass
 
 
 def main():
@@ -219,12 +203,15 @@ def main():
     if args.implementation == 'dft':
         # do a O(N^4) DFT on the image data
         result = dft(imarray)
-    elif args.implementation == 'c-t':
+    elif args.implementation == 'ct':
         # use Cooley-Tukey divide-and-conquer approach
-        result = ct(imarray)
-    elif args.implementation == 'v-r':
+        result = cooley_tukey(imarray)
+    elif args.implementation == 'sr':
+        # use split-radix implementation
+        result = split_radix(imarray)
+    elif args.implementation == 'vr':
         # use vector-radix implementation
-        result = vr(imarray)
+        result = vector_radix(imarray)
     else:
         raise ValueError('not a valid implementation')
     print("--- %s seconds ---" % (time.time() - start_time))
