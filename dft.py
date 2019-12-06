@@ -105,6 +105,7 @@ def ct(imarray, inverse=False):
 
     return result
 
+
 """
 Explicitly 2D DFT implementation which decimates along both dimensions at once.
 Implements a radix-2 decimation-in-time vector-radix FFT.
@@ -119,35 +120,73 @@ def vr(imarray, inverse=False):
     const = 1.0 / (M * N) if inverse else 1.0
     sign = 1.0 if inverse else -1.0
 
+    if M != N:
+        raise ValueError("image must be square")
+
     if not np.log2(N).is_integer():
         raise ValueError("size of image must be a power of 2")
 
-    # N_min here is equivalent to the stopping condition above,
-    # and should be a power of 2
     N_min = min(N, 32)
 
-    # Perform slow DFT on all length-N_min sub-problems as in Cooley-Tukey
-    n = np.arange(N_min)[:, None, None]
-    k = np.arange(N_min)[None, :, None]
-    l = np.arange(N_min)[None, None, :]
-    M = np.exp(sign * 2.0j * np.pi * n * k / N_min) # 
-    X = np.dot(M, x.reshape((N_min, -1)))
+    if N == N_min:
+        X = dft(imarray, inverse=inverse)
+    else:
+        X_even_even = vr(imarray[::2, ::2], inverse=inverse)
+        X_even_odd = vr(imarray[::2, 1::2], inverse=inverse)
+        X_odd_even = vr(imarray[1::2, ::2], inverse=inverse)
+        X_odd_odd = vr(imarray[1::2, 1::2], inverse=inverse)
+        f_even_odd = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[None, :]
+        f_odd_even = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[:, None]
+        f_odd_odd = f_even_odd * f_odd_even
 
-    factor = cmath.exp(sign * 2.0j * cmath.pi * multiplier)
+        X = np.tile(X_even_even, (2, 2))
+        X += f_even_odd * np.tile(X_even_odd, (2, 2))
+        X += f_odd_even * np.tile(X_odd_even, (2, 2))
+        X += f_odd_odd * np.tile(X_odd_odd, (2, 2))
+    return X
 
 
 """
-Computes a DFT by using different radixes in order to avoid needless
+Computes a DFT by using different radixes in order to simplify out needless
 multiplications between recursive DFTs ("twiddle factors").
-Implements a radix-2/4 decimation-in-frequency split-radix FFT.
+Implements a decimation-in-frequency split vector-radix FFT.
 Input:
     imarray = array representing the pixel intensities of 2D image
     inverse = boolean representing whether to take the inverse DFT
 Output:
     result = array representing the DFT of the image
 """
-def sr(imarray, inverse=False):
-    pass
+def srvr(imarray, inverse=False):
+    M, N = imarray.shape
+    const = 1.0 / (M * N) if inverse else 1.0
+    sign = 1.0 if inverse else -1.0
+
+    if M != N:
+        raise ValueError("image must be square")
+
+    if not np.log2(N).is_integer():
+        raise ValueError("size of image must be a power of 2")
+
+    N_min = min(N, 32)
+
+    if N == N_min:
+        X = dft(imarray, inverse=inverse)
+    else:
+        X_even_even = vr(imarray[::2, ::2], inverse=inverse)
+        X_even_odd = vr(imarray[::2, 1::2], inverse=inverse)
+        X_odd_even = vr(imarray[1::2, ::2], inverse=inverse)
+        X_odd_odd = vr(imarray[1::2, 1::2], inverse=inverse)
+        f_even_odd = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[None, :]
+        f_odd_even = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[:, None]
+        f_odd_odd = f_even_odd * f_odd_even
+
+        X = np.tile(X_even_even, (2, 2))
+        X += f_even_odd * np.tile(X_even_odd, (2, 2))
+        X += f_odd_even * np.tile(X_odd_even, (2, 2))
+        X += f_odd_odd * np.tile(X_odd_odd, (2, 2))
+        # TODO: replace odd terms appropriately
+
+    return X
 
 
 """
@@ -183,9 +222,9 @@ def main():
     elif args.implementation == 'c-t':
         # use Cooley-Tukey divide-and-conquer approach
         result = ct(imarray)
-    elif args.implementation == 'bruun':
-        # use Bruun's implementation
-        result = bruun(imarray)
+    elif args.implementation == 'v-r':
+        # use vector-radix implementation
+        result = vr(imarray)
     else:
         raise ValueError('not a valid implementation')
     print("--- %s seconds ---" % (time.time() - start_time))
