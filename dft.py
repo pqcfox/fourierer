@@ -2,6 +2,7 @@ from PIL import Image
 import numpy as np
 import argparse
 import cmath
+import time
 
 """
 Slow O(MN) implementation of the discrete Fourier transform.
@@ -9,14 +10,24 @@ Input:
     imarray = array representing the pixel intensities of 2D image
     inverse = boolean representing whether to take the inverse DFT
 Output:
-    dft_r, dft_g, dft_b = matrices representing pixel intensities at each red, green, and blue channel
+    result = array representing the resultant transformed image
 """
 def dft(imarray, inverse=False):
-    const = 1
-    if inverse == True:
-        const = 1 / (2 * pi)
-    m, n = imarray.shape
-    return np.array([[sum([sum([imarray[i,j] * np.exp(-1j*2*np.pi*(k_m*i/m + k_n*j/n)) * const for i in range(m)]) for j in range(n)]) for k_n in range(n)] for k_m in range(m)])
+    M, N = imarray.shape
+    const = 1.0 / (M * N) if inverse else 1.0
+    sign = 1.0 if inverse else -1.0
+
+    result = np.zeros((M, N), dtype=complex)
+    for k in range(M):
+        for l in range(N):
+            total = 0
+            for a in range(M):
+                for b in range(N):
+                    multiplier = float(k * a) / M + float(l * b) / N
+                    factor = cmath.exp(sign * 2.0j * cmath.pi * multiplier)
+                    total += imarray[a][b] * factor * const
+            result[k][l] = total
+    return result
 
     """
     # for RGB images
@@ -45,22 +56,20 @@ def dft(imarray, inverse=False):
     return result
     """
 
-
 """
 Popular divide-and-conquer approach to DFT proposed by Cooley and Tukey.
+Implements a radix-2 decimation-in-time row-column Cooley-Tukey FFT.
 Input:
     imarray = array representing the pixel intensities of 2D image
-    inverse = boolean representing whether to take the inverse DFT
 Output:
-    result = array representing the convolved image
+    result = array representing the DFT of the image
 """
 def ct(imarray, inverse=False):
-    const = 1
-    if inverse == True:
-        const = 1 / (2 * pi)
     N = imarray.shape[0]
-    
-    if np.log2(N) % 1 > 0:
+    const = 1.0 / (M * N) if inverse else 1.0
+    sign = 1.0 if inverse else -1.0
+
+    if not np.log2(N).is_integer():
         raise ValueError("size of image must be a power of 2")
 
     # N_min here is equivalent to the stopping condition above,
@@ -69,16 +78,16 @@ def ct(imarray, inverse=False):
 
     def ct_1d(x):
         # Perform an O[N^2] DFT on all length-N_min sub-problems at once
-        n = np.arange(N_min)
-        k = n[:, None]
-        M = np.exp(-2j * np.pi * n * k / N_min)
+        k = np.arange(N_min)[None, :]
+        n = np.arange(N_min)[:, None]
+        M = np.exp(sign * 2.0j * np.pi * n * k / N_min)
         X = np.dot(M, x.reshape((N_min, -1)))
 
         # build-up each level of the recursive calculation all at once
         while X.shape[0] < N:
             X_even = X[:, :(int(X.shape[1] / 2))]
             X_odd = X[:, (int(X.shape[1] / 2)):]
-            factor = np.exp(-1j * np.pi * np.arange(X.shape[0])
+            factor = np.exp(sign * 1.0j * np.pi * np.arange(X.shape[0])
                             / X.shape[0])[:, None]
             X = np.vstack([X_even + factor * X_odd,
                         X_even - factor * X_odd])
@@ -87,29 +96,113 @@ def ct(imarray, inverse=False):
 
     inter = np.zeros((N, N), dtype=complex)
     for n in range(N):
-        x = imarray[n] 
-        inter[n] = ct_1d(x) 
-    result = np.zeros((N, N), dtype=complex)   
+        x = imarray[n]
+        inter[n] = ct_1d(x)
+    result = np.zeros((N, N), dtype=complex)
     for n in range(N):
         x = inter[:,n]
-        result[:,n] = ct_1d(x)        
-    
+        result[:,n] = ct_1d(x)
+
     return result
 
 
 """
-Bruun's FFT using a recursive polynomial-factorization approach. Must be used on factors of 2.
+Explicitly 2D DFT implementation which decimates along both dimensions at once.
+Implements a radix-2 decimation-in-time vector-radix FFT.
 Input:
     imarray = array representing the pixel intensities of 2D image
     inverse = boolean representing whether to take the inverse DFT
 Output:
-    result = array representing the convolved image
+    result = array representing the DFT of the image
 """
-def bruun(imarray, inverse=False):
-    m, n = imarray.size
-    return None
-    
-    
+def vr(imarray, inverse=False):
+    M, N = imarray.shape
+    const = 1.0 / (M * N) if inverse else 1.0
+    sign = 1.0 if inverse else -1.0
+
+    if M != N:
+        raise ValueError("image must be square")
+
+    if not np.log2(N).is_integer():
+        raise ValueError("size of image must be a power of 2")
+
+    N_min = min(N, 32)
+
+    if N == N_min:
+        X = dft(imarray, inverse=inverse)
+    else:
+        X_even_even = vr(imarray[::2, ::2], inverse=inverse)
+        X_even_odd = vr(imarray[::2, 1::2], inverse=inverse)
+        X_odd_even = vr(imarray[1::2, ::2], inverse=inverse)
+        X_odd_odd = vr(imarray[1::2, 1::2], inverse=inverse)
+        f_even_odd = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[None, :]
+        f_odd_even = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[:, None]
+        f_odd_odd = f_even_odd * f_odd_even
+
+        X = np.tile(X_even_even, (2, 2))
+        X += f_even_odd * np.tile(X_even_odd, (2, 2))
+        X += f_odd_even * np.tile(X_odd_even, (2, 2))
+        X += f_odd_odd * np.tile(X_odd_odd, (2, 2))
+    return X
+
+
+"""
+Computes a DFT by using different radixes in order to simplify out needless
+multiplications between recursive DFTs ("twiddle factors").
+Implements a decimation-in-frequency split vector-radix FFT.
+Input:
+    imarray = array representing the pixel intensities of 2D image
+    inverse = boolean representing whether to take the inverse DFT
+Output:
+    result = array representing the DFT of the image
+"""
+def srvr(imarray, inverse=False):
+    M, N = imarray.shape
+    const = 1.0 / (M * N) if inverse else 1.0
+    sign = 1.0 if inverse else -1.0
+
+    if M != N:
+        raise ValueError("image must be square")
+
+    if not np.log2(N).is_integer():
+        raise ValueError("size of image must be a power of 2")
+
+    N_min = min(N, 32)
+
+    if N == N_min:
+        X = dft(imarray, inverse=inverse)
+    else:
+        X_even_even = vr(imarray[::2, ::2], inverse=inverse)
+        X_even_odd = vr(imarray[::2, 1::2], inverse=inverse)
+        X_odd_even = vr(imarray[1::2, ::2], inverse=inverse)
+        X_odd_odd = vr(imarray[1::2, 1::2], inverse=inverse)
+        f_even_odd = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[None, :]
+        f_odd_even = np.exp(sign * 2.0j * np.pi * np.arange(N) / N)[:, None]
+        f_odd_odd = f_even_odd * f_odd_even
+
+        X = np.tile(X_even_even, (2, 2))
+        X += f_even_odd * np.tile(X_even_odd, (2, 2))
+        X += f_odd_even * np.tile(X_odd_even, (2, 2))
+        X += f_odd_odd * np.tile(X_odd_odd, (2, 2))
+        # TODO: replace odd terms appropriately
+
+    return X
+
+
+"""
+Computes a 1D DFT by rearranging coefficients to avoid any multiplications
+between DFT calculations (i.e. no "twiddle factors").
+Implements a 1D prime factor algorithm FFT (uses Good's mapping).
+Input:
+    imarray = array representing the pixel intensities of 2D image
+    inverse = boolean representing whether to take the inverse DFT
+Output:
+    result = array representing the DFT of the image
+"""
+def pfa_1d(x):
+    pass
+
+
 def main():
     # load the data as a numpy array
     parser = argparse.ArgumentParser()
@@ -122,17 +215,19 @@ def main():
     imarray = np.array(image)
 
     result = None
+    start_time = time.time()
     if args.implementation == 'dft':
         # do a O(N^4) DFT on the image data
         result = dft(imarray)
     elif args.implementation == 'c-t':
         # use Cooley-Tukey divide-and-conquer approach
         result = ct(imarray)
-    elif args.implementation == 'bruun':
-        # use Bruun's implementation
-        result = bruun(imarray)
+    elif args.implementation == 'v-r':
+        # use vector-radix implementation
+        result = vr(imarray)
     else:
         raise ValueError('not a valid implementation')
+    print("--- %s seconds ---" % (time.time() - start_time))
 
     # to display the image, we only take the magnitude of the resultant array, as it contains most of the geometric structure info
     magnitude = np.real(result)
@@ -142,10 +237,13 @@ def main():
     im_result.save(args.output_path, 'PNG')
 
     # get numpy fft result
+    start_time = time.time()
     result = np.fft.fft2(imarray)
+    print("--- %s seconds ---" % (time.time() - start_time))
+
     magnitude = np.real(result)
     im_result = Image.fromarray(magnitude).convert('L')
-    im_result.save('true.png', 'PNG') 
+    im_result.save('true.png', 'PNG')
 
 
 
