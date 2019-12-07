@@ -131,39 +131,6 @@ def vector_radix(X, inverse=False):
     return result
 
 
-def rader_1d(X):
-    N, = X.shape
-
-    if any([N % i == 0 for i in range(2, int(np.sqrt(N)) + 1)]):
-        raise ValueError("size of input must be prime")
-
-    for g in range(2, N):
-        for order in range(1, N):
-            if pow(g, order, N) == 1:
-                break
-
-        if order == N - 1:
-            break
-
-    print(g)
-
-
-    result = np.zeros_like(X, dtype=complex)
-    result[0] = np.sum(X)
-    exps = np.array([pow(g, q, N) for q in range(N - 1)])
-    neg_exps = np.array([pow(g, q, N) for q in range(N - 1, 0, -1)])
-    a = X[neg_exps]
-    b = np.exp(-2.0j * np.pi * exps / N)
-    print(exps)
-    print(neg_exps)
-    print(a)
-    print(b)
-    print('--------')
-    prod = np.fft.fft(b) * np.fft.fft(a)
-    conv = np.fft.ifft(prod)
-    result[exps] = X[0] + conv
-    return result
-
 """
 Popular divide-and-conquer approach to DFT proposed by Cooley and Tukey.
 Implements a radix-2 decimation-in-time row-column Cooley-Tukey FFT.
