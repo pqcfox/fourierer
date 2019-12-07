@@ -32,13 +32,12 @@ def find_relative_primes(pairwise_factors):
 		if len(set_primes_1.intersection(set_primes_2)) == 0:
 			return pair
 	raise ValueError('length of X cannot be used for prime factor FFT')
-
 """
 Solves the 1D FFT using the Good-Thomas algorithm.
 Input:
-	X = 1D numpy array of length N, where N can be factored into at least two relatively prime factors
+X = 1D numpy array of length N, where N can be factored into at least two relatively prime factors
 Output:
-	result = transformed 1D numpy array
+result = transformed 1D numpy array
 """
 def prime_fft(X):
 	N = len(X)
