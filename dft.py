@@ -131,12 +131,6 @@ def vector_radix(X, inverse=False):
     return result
 
 
-def gcd(a, b):
-    if b == 0:
-        return a
-    return gcd(b, a % b)
-
-
 def rader_1d(X):
     N, = X.shape
 
@@ -144,23 +138,30 @@ def rader_1d(X):
         raise ValueError("size of input must be prime")
 
     for g in range(2, N):
-        if gcd(g, N) == 1:
+        for order in range(1, N):
+            if pow(g, order, N) == 1:
+                break
+
+        if order == N - 1:
             break
+
+    print(g)
+
 
     result = np.zeros_like(X, dtype=complex)
     result[0] = np.sum(X)
     exps = np.array([pow(g, q, N) for q in range(N - 1)])
-    neg_exps = np.array([pow(g, q, N) for q in reversed(range(N - 1))])
-    a = X[exps]
-    b = np.exp(-2.0j * np.pi * neg_exps / N)
+    neg_exps = np.array([pow(g, q, N) for q in range(N - 1, 0, -1)])
+    a = X[neg_exps]
+    b = np.exp(-2.0j * np.pi * exps / N)
     print(exps)
     print(neg_exps)
     print(a)
     print(b)
-    print('-----')
-    prod = np.fft.fft(a) * np.fft.fft(b)
+    print('--------')
+    prod = np.fft.fft(b) * np.fft.fft(a)
     conv = np.fft.ifft(prod)
-    result[1:] = X[0] + conv
+    result[exps] = X[0] + conv
     return result
 
 """
@@ -263,6 +264,4 @@ def main():
 
 
 if __name__ == '__main__':
-    # print(rader_1d(np.array([0, 1, 0, 1, 1])))
-    # print(np.fft.fft(np.array([0, 1, 0, 1, 1])))
     main()
