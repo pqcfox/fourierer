@@ -46,7 +46,7 @@ def cooley_tukey_1d(X, inverse=False):
     sign = 1.0 if inverse else -1.0
 
     if not np.log2(N).is_integer():
-        raise ValueError("size of image must be a power of 2")
+        raise ValueError("size of input must be a power of 2")
 
     if N == 1:
         return X
@@ -71,7 +71,7 @@ def split_radix_1d(X, inverse=False):
     sign = 1.0 if inverse else -1.0
 
     if not np.log2(N).is_integer():
-        raise ValueError("size of image must be a power of 2")
+        raise ValueError("size of input must be a power of 2")
 
     if N == 1:
         return X
@@ -131,9 +131,37 @@ def vector_radix(X, inverse=False):
     return result
 
 
-def pfa_1d(x):
-    pass
+def gcd(a, b):
+    if b == 0:
+        return a
+    return gcd(b, a % b)
 
+
+def rader_1d(X):
+    N, = X.shape
+
+    if any([N % i == 0 for i in range(2, int(np.sqrt(N)) + 1)]):
+        raise ValueError("size of input must be prime")
+
+    for g in range(2, N):
+        if gcd(g, N) == 1:
+            break
+
+    result = np.zeros_like(X, dtype=complex)
+    result[0] = np.sum(X)
+    exps = np.array([pow(g, q, N) for q in range(N - 1)])
+    neg_exps = np.array([pow(g, q, N) for q in reversed(range(N - 1))])
+    a = X[exps]
+    b = np.exp(-2.0j * np.pi * neg_exps / N)
+    print(exps)
+    print(neg_exps)
+    print(a)
+    print(b)
+    print('-----')
+    prod = np.fft.fft(a) * np.fft.fft(b)
+    conv = np.fft.ifft(prod)
+    result[1:] = X[0] + conv
+    return result
 
 """
 Popular divide-and-conquer approach to DFT proposed by Cooley and Tukey.
@@ -235,4 +263,6 @@ def main():
 
 
 if __name__ == '__main__':
+    # print(rader_1d(np.array([0, 1, 0, 1, 1])))
+    # print(np.fft.fft(np.array([0, 1, 0, 1, 1])))
     main()
