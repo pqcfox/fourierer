@@ -1,5 +1,5 @@
 import numpy as np
-
+import time
 
 """
 1D Rader fast Fourier transform.
@@ -47,6 +47,10 @@ def rader_1d(X):
     return result
 
 
-X = np.array([3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9])
+X = np.array([3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 4, 7, 2, 4, 8, 0])
+start_time = time.time()
 print('Rader\'s FFT: {}'.format(rader_1d(X)))
+print("--- %s seconds ---" % (time.time() - start_time))
+start_time = time.time()
 print('Numpy FFT: {}'.format(np.fft.fft(X)))
+print("--- %s seconds ---" % (time.time() - start_time))

@@ -1,7 +1,9 @@
 import numpy as np
 import cmath
 import math
+import time
 
+# get factors as pairs (e.g. (5,10) for n = 50)
 def get_factors(n):
 	pairwise_factors = []
 	for i in range(1, int(math.sqrt(n)) + 1):
@@ -32,6 +34,7 @@ def find_relative_primes(pairwise_factors):
 		if len(set_primes_1.intersection(set_primes_2)) == 0:
 			return pair
 	raise ValueError('length of X cannot be used for prime factor FFT')
+
 """
 Solves the 1D FFT using the Good-Thomas algorithm.
 Input:
@@ -71,10 +74,11 @@ def prime_fft(X):
 	return result
 
 X = np.tile(np.array([0,1,2,3,4], dtype=complex), 6)
+start_time = time.time()
 transformed = prime_fft(X)
+print("--- %s seconds ---" % (time.time() - start_time))
+
 # compare to numpy 1d fft
+start_time = time.time()
 np_result = np.fft.fft(X)
-
-for i in range(len(transformed)):
-	print(transformed[i], np_result[i])
-
+print("--- %s seconds ---" % (time.time() - start_time))
