@@ -1,6 +1,14 @@
 import numpy as np
 
 
+"""
+1D Rader fast Fourier transform.
+Input:
+    X = 1D array containing values to take the FFT of
+    inverse = boolean representing whether to take the inverse DFT
+Output:
+    result = transformed array
+"""
 def rader_1d(X):
     N, = X.shape
 

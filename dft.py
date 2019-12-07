@@ -30,6 +30,15 @@ def dft(imarray, inverse=False):
     return result
 
 
+"""
+Takes in a 1D FFT algorithm and calculates the 2D FFT via the
+row-column algorithm using it.
+Input:
+    image = array representing the pixel intensities of 2D image
+    inverse = boolean representing whether to take the inverse DFT
+Output:
+    result = array representing the resultant transformed image
+"""
 def row_column(image, fft_1d, inverse=False):
     M, N = image.shape
     output = np.zeros_like(image, dtype=complex)
@@ -40,6 +49,14 @@ def row_column(image, fft_1d, inverse=False):
     return output
 
 
+"""
+1D radix-2 DIT Cooley Tukey fast Fourier transform.
+Input:
+    X = 1D array containing values to take the FFT of
+    inverse = boolean representing whether to take the inverse DFT
+Output:
+    result = transformed array
+"""
 def cooley_tukey_1d(X, inverse=False):
     N, = X.shape
     const = 1.0 / (M * N) if inverse else 1.0
@@ -61,10 +78,26 @@ def cooley_tukey_1d(X, inverse=False):
     return result
 
 
+"""
+2D row-column radix-2 DIT Cooley Tukey fast Fourier transform.
+Input:
+    image = array representing the pixel intensities of 2D image
+    inverse = boolean representing whether to take the inverse DFT
+Output:
+    result = array representing the resultant transformed image
+"""
 def cooley_tukey(image, inverse=False):
     return row_column(image, cooley_tukey_1d, inverse=inverse)
 
 
+"""
+1D radix-2/4 DIT split radix fast Fourier transform.
+Input:
+    X = 1D array containing values to take the FFT of
+    inverse = boolean representing whether to take the inverse DFT
+Output:
+    result = transformed array
+"""
 def split_radix_1d(X, inverse=False):
     N, = X.shape
     const = 1.0 / (M * N) if inverse else 1.0
@@ -97,11 +130,26 @@ def split_radix_1d(X, inverse=False):
     result = np.concatenate((first, second, third, fourth))
     return result
 
-
+"""
+2D row-column radix-2/4 DIT split Radix fast Fourier transform.
+Input:
+    image = array representing the pixel intensities of 2D image
+    inverse = boolean representing whether to take the inverse DFT
+Output:
+    result = array representing the resultant transformed image
+"""
 def split_radix(image, inverse=False):
     return row_column(image, split_radix_1d, inverse=inverse)
 
 
+"""
+2D radix-2 DIT vector radix fast Fourier transform.
+Input:
+    image = array representing the pixel intensities of 2D image
+    inverse = boolean representing whether to take the inverse DFT
+Output:
+    result = array representing the resultant transformed image
+"""
 def vector_radix(X, inverse=False):
     M, N = X.shape
     const = 1.0 / (M * N) if inverse else 1.0
@@ -134,6 +182,8 @@ def vector_radix(X, inverse=False):
 """
 Popular divide-and-conquer approach to DFT proposed by Cooley and Tukey.
 Implements a radix-2 decimation-in-time row-column Cooley-Tukey FFT.
+Closely adapted from an implementation at
+https://www.nayuki.io/page/how-to-implement-the-discrete-fourier-transform.
 Input:
     imarray = array representing the pixel intensities of 2D image
 Output:
